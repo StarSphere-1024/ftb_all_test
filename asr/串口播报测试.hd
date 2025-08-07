@@ -1,0 +1,154 @@
+#include "asr.h"
+extern "C"
+{
+  void *__dso_handle = 0;
+}
+#include "setup.h"
+#include "HardwareSerial.h"
+#include "myLib/asr_event.h"
+
+uint32_t snid;
+String Rec;
+
+void UART0_RX(); // 处理 PC 的 Serial 命令
+void UART1_RX(); // 处理 ESP32S3 的 Serial1 命令
+void ASR_CODE();
+void app();
+
+//{speak:云儿-温柔女声,vol:10,speed:10,platform:haohaodada,version:V3}
+//{playid:10001,voice:欢迎使用未来科技盒。}
+//{playid:10002,voice:我退下了}
+
+// 处理串口命令的通用函数
+void processSerialCommand(String command, const char *portName)
+{
+  command.trim();
+  Serial.print(portName);
+  Serial.print(" received command: ");
+  Serial.println(command);
+  if (command == "Wakeup")
+  {
+    Serial.print(portName);
+    Serial.println("Triggering wake-up for 5000ms");
+    enter_wakeup(5000);
+    Serial.print(portName);
+    Serial.println("Wake-up command executed");
+  }
+  else if (command.startsWith("PlayVol:"))
+  {
+    String audioIdStr = command.substring(8); // 解析 PlayVol: 后的数字
+    int audioId = audioIdStr.toInt();
+    Serial.print(portName);
+    Serial.print(" Parsed audio ID: ");
+    Serial.println(audioId);
+    enter_wakeup(5000);
+    play_audio(audioId);
+    Serial.print(portName);
+    Serial.println(" Audio playback command executed");
+  }
+  else if (command == "PingASR")
+  {
+    Serial1.println("PongASR");
+    Serial.print(portName);
+    Serial.println("Println PongASR");
+  }
+  else
+  {
+    Serial.print(portName);
+    Serial.println(" Invalid command");
+  }
+}
+
+// 处理 PC 的 Serial 命令
+void UART0_RX()
+{
+  while (1)
+  {
+    if (Serial.available() > 0)
+    {
+      String command = Serial.readStringUntil('\n');
+      processSerialCommand(command, "UART0");
+    }
+    delay(2);
+  }
+  vTaskDelete(NULL);
+}
+
+// 处理 ESP32S3 的 Serial1 命令
+void UART1_RX()
+{
+  while (1)
+  {
+    if (Serial1.available() > 0)
+    {
+      String command = Serial1.readStringUntil('\n');
+      processSerialCommand(command, "UART1");
+    }
+    delay(2);
+  }
+  vTaskDelete(NULL);
+}
+
+/* 语音识别处理函数 */
+void ASR_CODE()
+{
+  Serial.println("Entering ASR_CODE with snid: ");
+  Serial.println(snid);
+  set_state_enter_wakeup(15000);
+  Serial.println("Set wake-up state for 15000ms");
+  switch (snid)
+  {
+  case 1: // 打开灯光
+    Serial.println("Sending RGB:ON to ESP32S3");
+    Serial1.println("RGB:ON");
+    Serial.println("RGB:ON command sent");
+    break;
+  case 2: // 关闭灯光
+    Serial.println("Sending RGB:OFF to ESP32S3");
+    Serial1.println("RGB:OFF");
+    Serial.println("RGB:OFF command sent");
+    break;
+  default:
+    Serial.println("Unknown snid value");
+    break;
+  }
+  Serial.println("Exiting ASR_CODE");
+}
+
+void app()
+{
+  while (1)
+  {
+    delay(100);
+  }
+  vTaskDelete(NULL);
+}
+
+void hardware_init()
+{
+  setPinFun(13, SECOND_FUNCTION);
+  setPinFun(14, SECOND_FUNCTION);
+  Serial.begin(115200);
+  setPinFun(2, FORTH_FUNCTION);
+  setPinFun(3, FORTH_FUNCTION);
+  Serial1.begin(115200);
+  Serial.println("Initializing hardware");
+  vol_set(5);
+  Serial.println("Volume set to 5");
+  xTaskCreate(UART0_RX, "UART0_RX", 256, NULL, 3, NULL); // PC Serial 任务
+  xTaskCreate(UART1_RX, "UART1_RX", 256, NULL, 4, NULL); // ESP32S3 Serial1 任务
+  xTaskCreate(app, "app", 128, NULL, 2, NULL);
+  Serial.println("Tasks created: UART0_RX, UART1_RX, app");
+  Serial.println("Hardware initialization complete");
+  vTaskDelete(NULL);
+}
+
+void setup()
+{
+  //{playid:100,voice:我是未来科技盒}
+  //{ID:0,keyword:"唤醒词",ASR:"未来科技盒",ASRTO:"我在呢"}
+  //{ID:1,keyword:"命令词",ASR:"打开灯光",ASRTO:"已打开灯光"}
+  //{ID:2,keyword:"命令词",ASR:"关闭灯光",ASRTO:"已关闭灯光"}
+}
+
+/** edittype="asr_procode" */
