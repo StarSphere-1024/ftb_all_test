@@ -1,29 +1,7 @@
-/*
- * =====================================================================================
- *
- * 项目:  ESP32-S3 开发板硬件综合测试程序
- * 请通过Arduino串口监视器与程序交互，波特率设置为115200。
- *
- * 依赖库:
- * 1. FastLED
- * 2. ESP32Servo
- * 3. PS2X_lib
- * 4. EspSoftwareSerial
- * 5. Grove-3-Axis-Digital-Accelerometer-2g-to-16g-LIS3DHTR
- * 6. Grove_Temperature_And_Humidity_Sensor
- * 7. Grove_Ultrasonic_Ranger
- *
- * =====================================================================================
- */
-
-// =====================================================================================
-// 库文件引入
-// =====================================================================================
 #include <Arduino.h>
 #include <Wire.h>
 #include <WiFi.h>
 #include <FastLED.h>
-#include <ESP32Servo.h>
 #include <PS2X_lib.h>
 #include <SoftwareSerial.h>
 #include <BLEDevice.h>
@@ -34,21 +12,12 @@
 #include "Ultrasonic.h"
 #include <WonderK210.h>
 
-// =====================================================================================
-// 宏定义
-// =====================================================================================
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
-// =====================================================================================
-// 引脚定义
-// =====================================================================================
-
-// --- 用户接口 ---
 #define USER_BUTTON_A_PIN 21
 #define USER_BUTTON_B_PIN 0
 
-// --- RGB LED (FastLED) ---
 #define RGB_PIN 33
 #define NUM_RGB_LEDS 9
 #define RGB_BRIGHTNESS 150
@@ -59,22 +28,16 @@ CRGB leds[NUM_RGB_LEDS];
 #define I2C_SDA 39
 #define I2C_SCL 40
 
-// --- 串口 ---
-// Serial (UART0) 用于与PC通信
 #define LOG_RX_PIN 44
 #define LOG_TX_PIN 43
-// Serial1 (UART1) 用于与K210通信
 #define K210_RX_PIN 37
 #define K210_TX_PIN 36
-// Serial2 (UART2) 用于与ASR-PRO通信
 #define ASR_RX_PIN 35
 #define ASR_TX_PIN 34
-// 软件串口 (EspSoftwareSerial)
 #define SOFT_SERIAL_RX_PIN 20
 #define SOFT_SERIAL_TX_PIN 19
 EspSoftwareSerial::UART softSerial;
 
-// --- Grove 接口 ---
 #define GROVE6_PIN_A 1
 #define GROVE6_PIN_B 2
 #define GROVE3_PIN_A 3
@@ -86,13 +49,11 @@ EspSoftwareSerial::UART softSerial;
 #define GROVE4_PIN_A 26
 #define GROVE4_PIN_B 38
 
-// --- 模拟接口 ---
 #define ANALOG1_PIN_A GROVE3_PIN_A
 #define ANALOG1_PIN_B GROVE3_PIN_B
 #define ANALOG2_PIN_A GROVE6_PIN_A
 #define ANALOG2_PIN_B GROVE6_PIN_B
 
-// --- PS2 手柄 ---
 #define PS2_CMD_PIN 9
 #define PS2_DATA_PIN 10
 #define PS2_CLK_PIN 41
@@ -102,15 +63,14 @@ EspSoftwareSerial::UART softSerial;
 #define DHT_PIN GROVE5_PIN_A
 #define ULTRASONIC_PIN GROVE2_PIN_A
 
-// --- 麦克纳姆轮电机驱动 ---
-#define LF_MOTOR_FWD_PWM 11 // 左前轮前进
-#define LF_MOTOR_REV_PWM 12 // 左前轮后退
-#define RF_MOTOR_FWD_PWM 14 // 右前轮前进
-#define RF_MOTOR_REV_PWM 13 // 右前轮后退
-#define LR_MOTOR_FWD_PWM 15 // 左后轮前进
-#define LR_MOTOR_REV_PWM 16 // 左后轮后退
-#define RR_MOTOR_FWD_PWM 18 // 右后轮前进
-#define RR_MOTOR_REV_PWM 17 // 右后轮后退
+#define LF_MOTOR_FWD_PWM 11
+#define LF_MOTOR_REV_PWM 12
+#define RF_MOTOR_FWD_PWM 14
+#define RF_MOTOR_REV_PWM 13
+#define LR_MOTOR_FWD_PWM 15
+#define LR_MOTOR_REV_PWM 16
+#define RR_MOTOR_FWD_PWM 18
+#define RR_MOTOR_REV_PWM 17
 const uint8_t MIN_SPEED = 100;
 enum CarState
 {
@@ -124,48 +84,32 @@ enum CarState
     BRAKING
 } CurrentState = STOP;
 
-// --- 舵机 ---
 #define SERVO1_PIN 48
 #define SERVO2_PIN 47
-#define SERVO_MIN_PULSE 500  // 0.5ms，对应 0°
-#define SERVO_MAX_PULSE 2500 // 2.5ms，对应 180°
-#define SERVO_PERIOD 20000   // 20ms，周期
-// =====================================================================================
-// 全局对象和变量
-// =====================================================================================
+#define SERVO_MIN_PULSE 500
+#define SERVO_MAX_PULSE 2500
+#define SERVO_PERIOD 20000
 
-// --- 舵机 ---
-Servo servo1;
-Servo servo2;
-
-// --- PS2 手柄 ---
 PS2X ps2x;
 int ps2_error = 0;
 byte ps2_type = 0;
 
-// --- WiFi ---
 const char *wifi_ssid = "MI4A";
 const char *wifi_password = "star123!";
 
-// --- BLE ---
 #define SERVICE_UUID "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
 #define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
 BLECharacteristic *pCharacteristic;
 bool deviceConnected = false;
 
-// --- Grove 传感器 ---
-LIS3DHTR<TwoWire> LIS; // 加速度传感器 (I2C)
+LIS3DHTR<TwoWire> LIS;
 #define DHTTYPE DHT11
 DHT dht(DHT_PIN, DHTTYPE);
 Ultrasonic ultrasonic(ULTRASONIC_PIN);
 
-// --- K210 人脸识别 ---
 WonderK210 *wk;
 Find_Box_st *result;
 
-// =====================================================================================
-// BLE 回调函数
-// =====================================================================================
 class MyServerCallbacks : public BLEServerCallbacks
 {
     void onConnect(BLEServer *pServer)
@@ -178,7 +122,7 @@ class MyServerCallbacks : public BLEServerCallbacks
     {
         deviceConnected = false;
         Serial.println("BLE客户端已断开");
-        pServer->getAdvertising()->start(); // 重新开始广播
+        pServer->getAdvertising()->start();
         Serial.println("已重新开始广播");
     }
 };
@@ -201,10 +145,9 @@ class MyCharacteristicCallbacks : public BLECharacteristicCallbacks
     }
 };
 
-// --- 软件 PWM 舵机控制 ---
 hw_timer_t *g_servo_timer = NULL;
 portMUX_TYPE g_servo_timer_mux = portMUX_INITIALIZER_UNLOCKED;
-#define SERVO_TIMER_FREQUENCY 1000000 // 1MHz, 1 tick = 1 microsecond
+#define SERVO_TIMER_FREQUENCY 1000000
 #define SERVO_TIMER_TICK_US 50
 #define SERVO_PWM_PERIOD_MS 20
 #define SERVO_PWM_PERIOD_TICKS (SERVO_PWM_PERIOD_MS * 1000 / SERVO_TIMER_TICK_US)
@@ -212,7 +155,6 @@ portMUX_TYPE g_servo_timer_mux = portMUX_INITIALIZER_UNLOCKED;
 #define SERVO_MAX_PULSE_US 2500
 volatile uint16_t g_servo1_pulse_ticks, g_servo2_pulse_ticks;
 
-// 软件 PWM 中断服务函数
 void ARDUINO_ISR_ATTR on_servo_timer()
 {
     portENTER_CRITICAL_ISR(&g_servo_timer_mux);
@@ -251,9 +193,6 @@ void Servos_SetAngle(uint8_t servo_num, uint8_t angle)
     portEXIT_CRITICAL(&g_servo_timer_mux);
 }
 
-// =====================================================================================
-// 麦克纳姆轮电机控制函数
-// =====================================================================================
 void controlWheel(uint8_t fwdPin, uint8_t revPin, int speed)
 {
     if (speed > 0)
@@ -340,9 +279,6 @@ void rampMovement(void (*moveFunction)(uint8_t), uint8_t targetSpeed, unsigned l
     release();
 }
 
-// =====================================================================================
-// ASR-PRO 函数
-// =====================================================================================
 void sendToASR(String command)
 {
     Serial2.println(command);
@@ -379,9 +315,6 @@ void processASRCommand(String command)
     }
 }
 
-// =====================================================================================
-// 帮助函数
-// =====================================================================================
 void printMenu()
 {
     Serial.println("\n==================================================");
@@ -424,10 +357,6 @@ void wait_for_exit()
     }
 }
 
-// =====================================================================================
-// 子测试函数
-// =====================================================================================
-// --- Serial K210 子测试 ---
 void testK210BasicCommunication()
 {
     Serial.println("\n发送 'PingK210'，期待 'PongK210' 回复...");
@@ -483,7 +412,6 @@ void testK210FaceRecognition()
         Serial.read();
 }
 
-// --- Serial ASR 子测试 ---
 void testASRBasicCommunication()
 {
     Serial.println("\n发送 'PingASR'，期待 'PongASR' 回复...");
@@ -551,7 +479,6 @@ void testASRRGBControl()
     }
 }
 
-// --- I2C 子测试 ---
 void testI2CBusScan()
 {
     Serial.println("\n--- I2C 总线扫描 ---");
@@ -598,7 +525,6 @@ void testI2CAccelerometer()
     }
 }
 
-// --- 模拟接口子测试 ---
 void testAnalogADC()
 {
     Serial.println("\n--- 模拟接口ADC测试 ---");
@@ -628,6 +554,72 @@ void testAnalogADC()
         Serial.read();
 }
 
+void testServo()
+{
+    Serial.println("\n舵机1 (GPIO48) 从0度转到180度，舵机2 (GPIO47) 从180度转到0度，然后反向。");
+    Serial.println("按任意键退出。");
+    for (int pos = 0; pos <= 180; pos += 1)
+    {
+        Servos_SetAngle(1, pos);
+        Servos_SetAngle(2, 180 - pos);
+        delay(15);
+        if (Serial.available() > 0)
+            break;
+    }
+    if (Serial.available() == 0)
+    {
+        for (int pos = 180; pos >= 0; pos -= 1)
+        {
+            Servos_SetAngle(1, pos);
+            Servos_SetAngle(2, 180 - pos);
+            delay(15);
+            if (Serial.available() > 0)
+                break;
+        }
+    }
+    Servos_SetAngle(1, 0);
+    Servos_SetAngle(2, 0);
+}
+
+void testServoSerialControl()
+{
+    Serial.println("\n--- 舵机串口控制测试 ---");
+    Serial.println("通过串口输入 'S1:<angle>' 或 'S2:<angle>' 设置舵机1或舵机2角度 (0-180)。");
+    Serial.println("输入 'exit' 退出测试。");
+
+    while (true)
+    {
+        if (Serial.available() > 0)
+        {
+            String input = Serial.readStringUntil('\n');
+            input.trim();
+            if (input == "exit")
+                break;
+            if (input.startsWith("S1:") || input.startsWith("S2:"))
+            {
+                int servo_num = input.startsWith("S1:") ? 1 : 2;
+                String angle_str = input.substring(3);
+                int angle = angle_str.toInt();
+                if (angle >= 0 && angle <= 180)
+                {
+                    Servos_SetAngle(servo_num, angle);
+                    Serial.printf("舵机%d 设置角度: %d\n", servo_num, angle);
+                }
+                else
+                {
+                    Serial.println("角度值无效，必须在0-180之间。");
+                }
+            }
+            else
+            {
+                Serial.println("无效命令，格式为 'S1:<angle>' 或 'S2:<angle>'。");
+            }
+        }
+    }
+    Servos_SetAngle(1, 0);
+    Servos_SetAngle(2, 0);
+}
+
 void testLightSensor()
 {
     Serial.println("\n--- 光线传感器测试 (GPIO2) ---");
@@ -644,7 +636,6 @@ void testLightSensor()
         Serial.read();
 }
 
-// --- Grove 接口子测试 ---
 void testDHT11Sensor()
 {
     Serial.println("\n--- 温湿度传感器测试 (DHT11, Grove1) ---");
@@ -689,13 +680,11 @@ void testLineFollowerSensors()
     Serial.println("将持续读取四路循迹传感器状态 (0=检测到线, 1=未检测到线)。");
     Serial.println("按任意键退出。");
 
-    // 定义引脚
-    const int LINE_FOLLOWER_G3_A = GROVE3_PIN_A; // GPIO3
-    const int LINE_FOLLOWER_G3_B = GROVE3_PIN_B; // GPIO4
-    const int LINE_FOLLOWER_G4_A = GROVE4_PIN_A; // GPIO26
-    const int LINE_FOLLOWER_G4_B = GROVE4_PIN_B; // GPIO38
+    const int LINE_FOLLOWER_G3_A = GROVE3_PIN_A;
+    const int LINE_FOLLOWER_G3_B = GROVE3_PIN_B;
+    const int LINE_FOLLOWER_G4_A = GROVE4_PIN_A;
+    const int LINE_FOLLOWER_G4_B = GROVE4_PIN_B;
 
-    // 设置引脚为输入
     pinMode(LINE_FOLLOWER_G3_A, INPUT);
     pinMode(LINE_FOLLOWER_G3_B, INPUT);
     pinMode(LINE_FOLLOWER_G4_A, INPUT);
@@ -717,18 +706,13 @@ void testLineFollowerSensors()
         Serial.print("  Grove4 B (GPIO38): ");
         Serial.println(g4_b);
 
-        delay(200); // 每200ms读取一次
+        delay(200);
     }
 
     while (Serial.available() > 0)
-        Serial.read(); // 清空串口缓冲区
+        Serial.read();
 }
 
-// =====================================================================================
-// 测试功能函数
-// =====================================================================================
-
-// 1. 串口通信测试 (PC)
 void testSerialPC()
 {
     Serial.println("\n--- 1. PC串口通信测试 ---");
@@ -746,7 +730,6 @@ void testSerialPC()
         }
     }
 }
-// 2. 串口通信测试 (K210)
 void testSerialK210()
 {
     Serial.println("\n--- 2. K210串口通信测试 (UART1) ---");
@@ -787,7 +770,6 @@ void testSerialK210()
         }
     }
 }
-// 3. 串口通信测试 (ASR-PRO)
 void testSerialASR()
 {
     Serial.println("\n--- 3. ASR-PRO串口通信测试 (UART2) ---");
@@ -836,7 +818,6 @@ void testSerialASR()
         }
     }
 }
-// 4. 软串口测试
 void testSoftSerial()
 {
     Serial.println("\n--- 4. 软串口测试  ---");
@@ -844,7 +825,7 @@ void testSoftSerial()
     Serial.println("您在PC串口发送的内容将通过软串口发送并接收回来。");
     Serial.println("输入 'exit' 退出。");
 
-    softSerial.listen(); // 开始监听软串口
+    softSerial.listen();
 
     while (true)
     {
@@ -866,7 +847,6 @@ void testSoftSerial()
     }
 }
 
-// 5. I2C 测试
 void testI2C()
 {
     Serial.println("\n--- 5. I2C 测试 ---");
@@ -908,7 +888,6 @@ void testI2C()
     }
 }
 
-// 6. 模拟接口测试 (J16, J17)
 void testAnalogInterfaces()
 {
     Serial.println("\n--- 6. 模拟接口测试 (J16, J17) ---");
@@ -950,7 +929,6 @@ void testAnalogInterfaces()
     }
 }
 
-// 7. Grove 接口测试
 void testGroveInterfaces()
 {
     Serial.println("\n--- 7. Grove 接口测试 ---");
@@ -996,7 +974,6 @@ void testGroveInterfaces()
     }
 }
 
-// 8. PS2 手柄通信测试
 void testPS2()
 {
     Serial.println("\n--- 8. PS2 手柄通信测试 ---");
@@ -1008,7 +985,6 @@ void testPS2()
     }
     Serial.println("请按键或移动摇杆进行测试。按任意键退出。");
 
-    // 定义按键映射表
     struct ButtonMap
     {
         uint16_t button;
@@ -1038,7 +1014,6 @@ void testPS2()
     {
         ps2x.read_gamepad(false, false);
 
-        // 检查按键
         for (int i = 0; i < buttonCount; i++)
         {
             if (ps2x.Button(buttons[i].button))
@@ -1047,7 +1022,6 @@ void testPS2()
             }
         }
 
-        // 检查摇杆
         int stick_lx = ps2x.Analog(PSS_LX);
         int stick_ly = ps2x.Analog(PSS_LY);
         if (stick_lx != 128 || stick_ly != 127)
@@ -1061,7 +1035,6 @@ void testPS2()
             Serial.printf("Right Stick: (%d, %d)\n", stick_rx, stick_ry);
         }
 
-        // 非阻塞延时
         if (millis() - lastUpdate >= 50)
         {
             lastUpdate = millis();
@@ -1072,7 +1045,6 @@ void testPS2()
         }
     }
 }
-// 9. 麦克纳姆轮电机测试
 void testMecanumMotors()
 {
     Serial.println("\n--- 9. 麦克纳姆轮电机测试 (自动模式) ---");
@@ -1086,14 +1058,13 @@ void testMecanumMotors()
     Serial.println("  7. 加速-保持-减速演示 (前进)");
     Serial.println("按任意键中断测试。");
 
-    // 定义测试项
     struct TestCase
     {
         const char *name;
         void (*action)(uint8_t);
         uint8_t speed;
-        unsigned long duration; // 持续时间（毫秒）
-        bool isRamp;            // 是否为加速-减速测试
+        unsigned long duration;
+        bool isRamp;
     };
     const TestCase tests[] = {
         {"前进", moveForward, 200, 2000, false},
@@ -1102,14 +1073,12 @@ void testMecanumMotors()
         {"右平移", strafeRight, 200, 2000, false},
         {"顺时针旋转", rotateClockwise, 200, 2000, false},
         {"逆时针旋转", rotateCounterClockwise, 200, 2000, false},
-        {"加速-保持-减速演示", moveForward, 255, 4000, true} // 总时长约4秒 (1000+2000+1000)
+        {"加速-保持-减速演示", moveForward, 255, 4000, true}
     };
     const int testCount = sizeof(tests) / sizeof(tests[0]);
 
-    // 运行测试
     for (int i = 0; i < testCount; i++)
     {
-        // 检查中断
         if (Serial.available() > 0)
         {
             Serial.println("测试被用户中断！");
@@ -1121,7 +1090,6 @@ void testMecanumMotors()
 
         Serial.printf("\n[%lu] 执行: %s\n", millis(), tests[i].name);
 
-        // 执行测试
         if (tests[i].isRamp)
         {
             rampMovement(tests[i].action, tests[i].speed, 1000, 2000, 1000);
@@ -1146,7 +1114,6 @@ void testMecanumMotors()
 
         Serial.printf("[%lu] %s 测试完成\n", millis(), tests[i].name);
 
-        // 测试间休眠500ms，确保电机停止
         unsigned long pauseStart = millis();
         while (millis() - pauseStart < 500)
         {
@@ -1166,37 +1133,44 @@ void testMecanumMotors()
 void testServos()
 {
     Serial.println("\n--- 10. 舵机功能测试 (软件 PWM) ---");
-    Serial.println("舵机1 (GPIO48) 从0度转到180度，舵机2 (GPIO47) 从180度转到0度，然后反向。");
-    Serial.println("按任意键退出。");
+    Serial.println("测试选项：");
+    Serial.println("  1. 自动角度测试");
+    Serial.println("  2. 串口控制测试");
+    Serial.println("  0. 退出");
+    Serial.print("请选择测试选项: ");
 
-    // 从 0° 到 180°
-    for (int pos = 0; pos <= 180; pos += 1)
+    while (true)
     {
-        Servos_SetAngle(1, pos);
-        Servos_SetAngle(2, 180 - pos);
-        delay(15);
         if (Serial.available() > 0)
-            break;
-    }
-    if (Serial.available() == 0)
-    {
-        // 从 180° 到 0°
-        for (int pos = 180; pos >= 0; pos -= 1)
         {
-            Servos_SetAngle(1, pos);
-            Servos_SetAngle(2, 180 - pos);
-            delay(15);
-            if (Serial.available() > 0)
+            String input = Serial.readStringUntil('\n');
+            input.trim();
+            int choice = input.toInt();
+            bool should_exit = false;
+
+            switch (choice)
+            {
+            case 1:
+                testServo();
                 break;
+            case 2:
+                testServoSerialControl();
+                break;
+            case 0:
+                should_exit = true;
+                break;
+            default:
+                Serial.println("无效输入。");
+                break;
+            }
+
+            if (should_exit)
+                break;
+            Serial.print("\n请选择下一个测试选项 (0退出): ");
         }
     }
-    // 停止舵机信号
-    Servos_SetAngle(1, 0);
-    Servos_SetAngle(2, 0);
-    wait_for_exit();
 }
 
-// 11. RGB LED 功能测试 (FastLED)
 void testRGB_FastLED()
 {
     Serial.println("\n--- 11. RGB LED 功能测试 (FastLED) ---");
@@ -1228,7 +1202,7 @@ void testRGB_FastLED()
     FastLED.show();
     delay(1000);
 
-    FastLED.setBrightness(RGB_BRIGHTNESS); // 恢复亮度
+    FastLED.setBrightness(RGB_BRIGHTNESS);
 
     Serial.println("彩虹流动效果");
     for (int i = 0; i < 2; i++)
@@ -1246,7 +1220,6 @@ void testRGB_FastLED()
     wait_for_exit();
 }
 
-// 12. WiFi 功能测试
 void testWiFi()
 {
     Serial.println("\n--- 12. WiFi 功能测试 ---");
@@ -1303,7 +1276,6 @@ void testWiFi()
     WiFi.mode(WIFI_OFF);
 }
 
-// 13. 蓝牙低功耗 (BLE) 功能测试
 void testBLE()
 {
     Serial.println("\n--- 13. 蓝牙低功耗 (BLE) 功能测试 ---");
@@ -1350,7 +1322,6 @@ void testBLE()
     Serial.println("BLE服务已停止。");
 }
 
-// 14. 用户按键测试
 void testButtons()
 {
     Serial.println("\n--- 14. 用户按键测试 ---");
@@ -1375,9 +1346,6 @@ void testButtons()
         Serial.read();
 }
 
-// =====================================================================================
-// 主程序
-// =====================================================================================
 void setup()
 {
     Serial.begin(115200);
@@ -1390,17 +1358,17 @@ void setup()
     softSerial.begin(9600, SWSERIAL_8N1, SOFT_SERIAL_RX_PIN, SOFT_SERIAL_TX_PIN, false);
 
     Wire.begin(I2C_SDA, I2C_SCL);
-    LIS.begin(Wire, 0x19); // 初始化加速度传感器
+    LIS.begin(Wire, 0x19);
     LIS.openTemp();
     delay(100);
     LIS.setFullScaleRange(LIS3DHTR_RANGE_2G);
     LIS.setOutputDataRate(LIS3DHTR_DATARATE_50HZ);
-    dht.begin(); // 初始化温湿度传感器
+    dht.begin();
 
-    wk = new WonderK210(&Serial1); // 使用 Serial1
+    wk = new WonderK210(&Serial1);
     result = new Find_Box_st();
 
-    pinMode(LIGHT_PIN, INPUT); // 初始化光线传感器引脚
+    pinMode(LIGHT_PIN, INPUT);
 
     pinMode(USER_BUTTON_A_PIN, INPUT_PULLUP);
     pinMode(USER_BUTTON_B_PIN, INPUT_PULLUP);
@@ -1439,15 +1407,14 @@ void setup()
     printMenu();
 }
 
+
 void loop()
 {
-    // 检查是否有串口输入
     if (Serial.available() > 0)
     {
-        char input[16]; // 固定大小缓冲区
+        char input[16];
         int index = 0;
 
-        // 读取输入直到换行符或缓冲区满
         while (Serial.available() && index < sizeof(input) - 1)
         {
             char c = Serial.read();
@@ -1455,13 +1422,11 @@ void loop()
                 break;
             input[index++] = c;
         }
-        input[index] = '\0'; // 结束符
+        input[index] = '\0';
 
-        // 清理剩余输入
         while (Serial.available())
             Serial.read();
 
-        // 去除首尾空白
         char *trimmed = input;
         while (*trimmed == ' ')
             trimmed++;
@@ -1469,7 +1434,6 @@ void loop()
         while (end >= trimmed && *end == ' ')
             *end-- = '\0';
 
-        // 定义测试项
         struct TestCase
         {
             int id;
@@ -1493,27 +1457,24 @@ void loop()
             {14, "用户按键测试", testButtons}};
         const int testCount = sizeof(tests) / sizeof(tests[0]);
 
-        // 处理输入
         if (trimmed[0] == 'm' || trimmed[0] == 'M')
         {
             printMenu();
         }
         else if (trimmed[0] == 'a' || trimmed[0] == 'A')
         {
-            // 自动运行所有测试
             Serial.println("\n--- 自动运行所有测试 ---");
             for (int i = 0; i < testCount; i++)
             {
                 Serial.printf("开始测试: %s\n", tests[i].name);
                 tests[i].testFunc();
                 Serial.printf("结束测试: %s\n", tests[i].name);
-                delay(500); // 测试间休眠
+                delay(500);
             }
             printMenu();
         }
         else
         {
-            // 转换为数字
             int choice = atoi(trimmed);
             bool valid = false;
             for (int i = 0; i < testCount; i++)
